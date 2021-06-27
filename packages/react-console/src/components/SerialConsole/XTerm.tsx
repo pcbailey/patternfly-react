@@ -10,7 +10,9 @@ export interface XTermProps {
   cols?: number;
   /** The number of rows to resize to */
   rows?: number;
+  /** The font family to be used */
   fontFamily?: string;
+  /** The font size to be used */
   fontSize?: number;
   /** Terminal title has been changed. */
   onTitleChanged?: (title: string) => void;
@@ -18,6 +20,8 @@ export interface XTermProps {
   onData?: (e: string) => void;
   /** A reference object to attach to the xterm */
   innerRef?: React.RefObject<any>;
+  /** The letter spacing to be used */
+  letterSpacing?: number;
 }
 
 export const XTerm: React.FunctionComponent<XTermProps> = ({
@@ -27,25 +31,26 @@ export const XTerm: React.FunctionComponent<XTermProps> = ({
   fontSize,
   onTitleChanged,
   onData,
-  innerRef
+  innerRef,
+  letterSpacing = 0
 }) => {
-  let terminal: Terminal;
+  const terminal = React.useRef<Terminal>();
   const ref = React.useRef<HTMLDivElement>();
 
   useImperativeHandle(innerRef, () => ({
     focusTerminal() {
-      if (terminal) {
-        terminal.focus();
+      if (terminal.current) {
+        terminal.current.focus();
       }
     },
     /**
      * Backend sent data.
      *
-     * @param {string} data String content to be writen into the terminal
+     * @param {string} data String content to be written into the terminal
      */
     onDataReceived: (data: string) => {
-      if (terminal) {
-        terminal.write(data);
+      if (terminal.current) {
+        terminal.current.write(data);
       }
     },
     /**
@@ -54,42 +59,45 @@ export const XTerm: React.FunctionComponent<XTermProps> = ({
      * @param {string} reason String error to be written into the terminal
      */
     onConnectionClosed: (reason: string) => {
-      if (terminal) {
-        terminal.write(`\x1b[31m${reason || 'disconnected'}\x1b[m\r\n`);
-        terminal.refresh(terminal.rows, terminal.rows); // start to end row
+      if (terminal.current) {
+        terminal.current.write(`\x1b[31m${reason || 'disconnected'}\x1b[m\r\n`);
+        terminal.current.refresh(terminal.current.rows, terminal.current.rows); // start to end row
       }
     }
   }));
 
   React.useEffect(() => {
     const fitAddon = new FitAddon();
-    terminal = new Terminal({
+    terminal.current = new Terminal({
       cols,
       rows,
       cursorBlink: true,
       fontFamily,
       fontSize,
-      screenReaderMode: true
+      screenReaderMode: true,
+      letterSpacing
     });
+
+    terminal?.current?.setOption('letterSpacing', 0);
 
     const onWindowResize = () => {
       const geometry = fitAddon.proposeDimensions();
       if (geometry) {
-        terminal.resize(geometry.rows, geometry.cols);
+        terminal.current.resize(geometry.rows, geometry.cols);
       }
     };
 
     if (onData) {
-      terminal.onData(onData);
+      terminal.current.onData(onData);
     }
 
     if (onTitleChanged) {
-      terminal.onTitleChange(onTitleChanged);
+      terminal.current.onTitleChange(onTitleChanged);
     }
 
-    terminal.loadAddon(fitAddon);
+    terminal.current.loadAddon(fitAddon);
 
-    terminal.open(ref.current);
+    terminal.current.open(ref.current);
 
     const resizeListener = debounce(onWindowResize, 100);
 
@@ -99,16 +107,18 @@ export const XTerm: React.FunctionComponent<XTermProps> = ({
       }
       onWindowResize();
     }
-    terminal.focus();
+    terminal.current.focus();
 
     return () => {
-      terminal.dispose();
+      terminal.current.dispose();
       if (canUseDOM) {
         window.removeEventListener('resize', resizeListener);
       }
       onFocusOut();
     };
   }, []);
+
+
 
   const onBeforeUnload = (event: any) => {
     // Firefox requires this when the page is in an iframe

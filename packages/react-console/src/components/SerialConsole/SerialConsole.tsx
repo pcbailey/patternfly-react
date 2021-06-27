@@ -43,6 +43,8 @@ export interface SerialConsoleProps extends XTermProps {
   textLoading?: string;
   /** A reference object to attach to the SerialConsole. */
   innerRef?: React.RefObject<any>;
+  /** The line spacing to be used */
+  lineSpacing?: number;
 }
 
 const SerialConsoleBase: React.FunctionComponent<SerialConsoleProps> = ({
@@ -60,7 +62,8 @@ const SerialConsoleBase: React.FunctionComponent<SerialConsoleProps> = ({
   textReset,
   textDisconnected = 'Click Connect to open serial console.',
   textLoading = 'Loading ...',
-  innerRef
+  innerRef,
+  lineSpacing
 }) => {
   React.useEffect(() => {
     onConnect();
@@ -101,6 +104,7 @@ const SerialConsoleBase: React.FunctionComponent<SerialConsoleProps> = ({
           fontSize={fontSize}
           onTitleChanged={onTitleChanged}
           onData={onData}
+          lineSpacing={lineSpacing}
         />
       );
       break;
